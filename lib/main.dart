@@ -8,6 +8,8 @@ Future<void> main() async {
   await RustLib.init();
   final docsDir = await getApplicationDocumentsDirectory();
   setApplicationDocumentsDirectory(dir: docsDir.path);
+  final supportDir = await getApplicationSupportDirectory();
+  initSystem(basePath: supportDir.path);
   final debugDir = debugApplicationDocumentsDirectory() ?? 'Directory unavailable';
   runApp(MyApp(debugDir: debugDir));
 }
