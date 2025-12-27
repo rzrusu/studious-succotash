@@ -37,6 +37,7 @@ dependencies:
   rust_lib_my_app:
     path: rust_builder
   flutter_rust_bridge: 2.11.1
+  path_provider: ^2.1.4
 
 dev_dependencies:
   flutter_test:
