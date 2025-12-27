@@ -6,9 +6,9 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `all_slots`, `create_slot`, `from_row`, `initialize_metadata_db`, `initialize`, `metadata_connection`, `open_configured_connection`, `with_save_manager`
+// These functions are ignored because they are not marked as `pub`: `all_slots`, `close_active_connection`, `create_slot`, `from_row`, `initialize_metadata_db`, `initialize`, `load_slot`, `metadata_connection`, `open_configured_connection`, `save_player_data`, `with_save_manager_mut`, `with_save_manager`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `SaveManagerError`, `SaveManager`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
 
 void initSystem({required String basePath}) =>
     RustLib.instance.api.crateApiSimpleInitSystem(basePath: basePath);
@@ -19,6 +19,12 @@ SaveSlotMetadata createNewSlot({required String displayName}) =>
 List<SaveSlotMetadata> getAllSlots() =>
     RustLib.instance.api.crateApiSimpleGetAllSlots();
 
+void loadSlot({required String slotId}) =>
+    RustLib.instance.api.crateApiSimpleLoadSlot(slotId: slotId);
+
+void savePlayerData({required PlayerData data}) =>
+    RustLib.instance.api.crateApiSimpleSavePlayerData(data: data);
+
 void setApplicationDocumentsDirectory({required String dir}) => RustLib
     .instance
     .api
@@ -26,6 +32,31 @@ void setApplicationDocumentsDirectory({required String dir}) => RustLib
 
 String? debugApplicationDocumentsDirectory() =>
     RustLib.instance.api.crateApiSimpleDebugApplicationDocumentsDirectory();
+
+class PlayerData {
+  final int health;
+  final int experience;
+  final List<String> inventory;
+
+  const PlayerData({
+    required this.health,
+    required this.experience,
+    required this.inventory,
+  });
+
+  @override
+  int get hashCode =>
+      health.hashCode ^ experience.hashCode ^ inventory.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PlayerData &&
+          runtimeType == other.runtimeType &&
+          health == other.health &&
+          experience == other.experience &&
+          inventory == other.inventory;
+}
 
 class SaveSlotMetadata {
   final String id;
