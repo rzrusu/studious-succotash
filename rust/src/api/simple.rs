@@ -181,6 +181,43 @@ impl SaveManager {
         Ok(())
     }
 
+    fn delete_slot(&mut self, slot_id: String) -> Result<(), SaveManagerError> {
+        let connection = self.metadata_connection()?;
+        let slot_lookup_id = slot_id.clone();
+        let slot_path_string: String = match connection.query_row(
+            "SELECT file_path FROM save_slots WHERE id = ?1",
+            params![&slot_lookup_id],
+            |row| row.get(0),
+        ) {
+            Ok(path) => path,
+            Err(rusqlite::Error::QueryReturnedNoRows) => {
+                return Err(SaveManagerError::SlotNotFound(slot_lookup_id))
+            }
+            Err(err) => return Err(err.into()),
+        };
+
+        let slot_path = PathBuf::from(&slot_path_string);
+        if slot_path.exists() {
+            fs::remove_file(&slot_path)?;
+        }
+        let tmp_path = slot_path.with_extension("db.tmp");
+        if tmp_path.exists() {
+            fs::remove_file(tmp_path)?;
+        }
+
+        connection.execute("DELETE FROM save_slots WHERE id = ?1", params![&slot_id])?;
+
+        if self
+            .active_slot
+            .as_ref()
+            .map(|slot| slot.id == slot_id)
+            .unwrap_or(false)
+        {
+            self.active_slot = None;
+        }
+        Ok(())
+    }
+
     fn update_last_played(&self, slot_id: &str) -> Result<(), SaveManagerError> {
         let connection = self.metadata_connection()?;
         connection.execute(
@@ -353,6 +390,11 @@ pub fn load_slot(slot_id: String) -> Result<(), String> {
 #[flutter_rust_bridge::frb(sync)]
 pub fn save_player_data(data: PlayerData) -> Result<(), String> {
     with_save_manager_mut(move |manager| manager.save_player_data(data))
+}
+
+#[flutter_rust_bridge::frb(sync)]
+pub fn delete_slot(slot_id: String) -> Result<(), String> {
+    with_save_manager_mut(move |manager| manager.delete_slot(slot_id))
 }
 
 #[flutter_rust_bridge::frb(sync)]

@@ -6,7 +6,7 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `all_slots`, `create_slot`, `from_row`, `initialize_metadata_db`, `initialize_slot_database`, `initialize`, `load_slot`, `metadata_connection`, `open_configured_connection`, `open_slot_connection`, `persist_player_data`, `save_player_data`, `update_last_played`, `with_save_manager_mut`, `with_save_manager`, `write_player_data`
+// These functions are ignored because they are not marked as `pub`: `all_slots`, `create_slot`, `delete_slot`, `from_row`, `initialize_metadata_db`, `initialize_slot_database`, `initialize`, `load_slot`, `metadata_connection`, `open_configured_connection`, `open_slot_connection`, `persist_player_data`, `save_player_data`, `update_last_played`, `with_save_manager_mut`, `with_save_manager`, `write_player_data`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `ActiveSlot`, `SaveManagerError`, `SaveManager`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`
 
@@ -24,6 +24,9 @@ void loadSlot({required String slotId}) =>
 
 void savePlayerData({required PlayerData data}) =>
     RustLib.instance.api.crateApiSimpleSavePlayerData(data: data);
+
+void deleteSlot({required String slotId}) =>
+    RustLib.instance.api.crateApiSimpleDeleteSlot(slotId: slotId);
 
 void setApplicationDocumentsDirectory({required String dir}) => RustLib
     .instance
