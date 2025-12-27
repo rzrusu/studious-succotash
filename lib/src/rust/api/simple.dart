@@ -6,12 +6,18 @@
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `initialize_metadata_db`, `initialize`
+// These functions are ignored because they are not marked as `pub`: `all_slots`, `create_slot`, `from_row`, `initialize_metadata_db`, `initialize`, `metadata_connection`, `open_configured_connection`, `with_save_manager`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `SaveManagerError`, `SaveManager`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `fmt`, `fmt`, `fmt`, `from`, `from`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`
 
 void initSystem({required String basePath}) =>
     RustLib.instance.api.crateApiSimpleInitSystem(basePath: basePath);
+
+SaveSlotMetadata createNewSlot({required String displayName}) =>
+    RustLib.instance.api.crateApiSimpleCreateNewSlot(displayName: displayName);
+
+List<SaveSlotMetadata> getAllSlots() =>
+    RustLib.instance.api.crateApiSimpleGetAllSlots();
 
 void setApplicationDocumentsDirectory({required String dir}) => RustLib
     .instance
@@ -20,3 +26,31 @@ void setApplicationDocumentsDirectory({required String dir}) => RustLib
 
 String? debugApplicationDocumentsDirectory() =>
     RustLib.instance.api.crateApiSimpleDebugApplicationDocumentsDirectory();
+
+class SaveSlotMetadata {
+  final String id;
+  final String name;
+  final String lastPlayed;
+  final String filePath;
+
+  const SaveSlotMetadata({
+    required this.id,
+    required this.name,
+    required this.lastPlayed,
+    required this.filePath,
+  });
+
+  @override
+  int get hashCode =>
+      id.hashCode ^ name.hashCode ^ lastPlayed.hashCode ^ filePath.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SaveSlotMetadata &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          name == other.name &&
+          lastPlayed == other.lastPlayed &&
+          filePath == other.filePath;
+}

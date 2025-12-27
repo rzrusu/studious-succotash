@@ -10,6 +10,8 @@ crate-type = ["cdylib", "staticlib"]
 flutter_rust_bridge = "=2.11.1"
 rusqlite = { version = "0.38.0", features = ["bundled"] }
 once_cell = "1.19"
+uuid = { version = "1.7", features = ["v4"] }
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
