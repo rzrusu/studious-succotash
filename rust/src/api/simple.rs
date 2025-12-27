@@ -57,10 +57,16 @@ pub struct PlayerData {
     pub inventory: Vec<String>,
 }
 
+#[derive(Clone, Debug)]
+struct ActiveSlot {
+    id: String,
+    path: PathBuf,
+}
+
 pub struct SaveManager {
     saves_dir: PathBuf,
     metadata_db_path: PathBuf,
-    active_connection: Option<Connection>,
+    active_slot: Option<ActiveSlot>,
 }
 
 impl SaveManager {
@@ -76,7 +82,7 @@ impl SaveManager {
         Ok(Self {
             saves_dir,
             metadata_db_path,
-            active_connection: None,
+            active_slot: None,
         })
     }
 
@@ -121,14 +127,7 @@ impl SaveManager {
         Ok(slots)
     }
 
-    fn close_active_connection(&mut self) {
-        if self.active_connection.is_some() {
-            self.active_connection = None;
-        }
-    }
-
     fn load_slot(&mut self, slot_id: String) -> Result<(), SaveManagerError> {
-        self.close_active_connection();
         let metadata_connection = self.metadata_connection()?;
         let slot_lookup_id = slot_id.clone();
         let slot_path_string: String = match metadata_connection.query_row(
@@ -144,43 +143,50 @@ impl SaveManager {
         };
 
         let slot_path = PathBuf::from(&slot_path_string);
-        let mut slot_connection = open_configured_connection(&slot_path)?;
-        SLOT_DB_MIGRATIONS.to_latest(&mut slot_connection)?;
+        initialize_slot_database(&slot_path)?;
 
         metadata_connection.execute(
             "UPDATE save_slots SET last_played = CURRENT_TIMESTAMP WHERE id = ?1",
             params![&slot_id],
         )?;
 
-        self.active_connection = Some(slot_connection);
+        self.active_slot = Some(ActiveSlot {
+            id: slot_id,
+            path: slot_path,
+        });
         Ok(())
     }
 
     fn save_player_data(&mut self, data: PlayerData) -> Result<(), SaveManagerError> {
-        let connection = self
-            .active_connection
-            .as_mut()
-            .ok_or(SaveManagerError::NoActiveSlot)?;
+        let active_slot = self
+            .active_slot
+            .as_ref()
+            .ok_or(SaveManagerError::NoActiveSlot)?
+            .clone();
+        let slot_path = active_slot.path.clone();
+        let tmp_path = slot_path.with_extension("db.tmp");
 
-        let transaction = connection.transaction()?;
-        transaction.execute(
-            "INSERT INTO player_stats (id, health, experience)
-             VALUES (1, ?1, ?2)
-             ON CONFLICT(id) DO UPDATE SET
-                health = excluded.health,
-                experience = excluded.experience",
-            params![data.health, data.experience],
-        )?;
-
-        transaction.execute("DELETE FROM inventory", [])?;
-        for (position, item) in data.inventory.iter().enumerate() {
-            transaction.execute(
-                "INSERT INTO inventory (position, item) VALUES (?1, ?2)",
-                params![position as i64, item],
-            )?;
+        if tmp_path.exists() {
+            fs::remove_file(&tmp_path)?;
         }
 
-        transaction.commit()?;
+        write_player_data(&tmp_path, &data)?;
+
+        if slot_path.exists() {
+            fs::remove_file(&slot_path)?;
+        }
+        fs::rename(&tmp_path, &slot_path)?;
+
+        self.update_last_played(&active_slot.id)?;
+        Ok(())
+    }
+
+    fn update_last_played(&self, slot_id: &str) -> Result<(), SaveManagerError> {
+        let connection = self.metadata_connection()?;
+        connection.execute(
+            "UPDATE save_slots SET last_played = CURRENT_TIMESTAMP WHERE id = ?1",
+            params![slot_id],
+        )?;
         Ok(())
     }
 }
@@ -245,6 +251,52 @@ fn initialize_metadata_db(path: &Path) -> Result<(), SaveManagerError> {
         )",
         [],
     )?;
+    Ok(())
+}
+
+fn open_slot_connection(path: &Path) -> Result<Connection, SaveManagerError> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let mut connection = open_configured_connection(path)?;
+    SLOT_DB_MIGRATIONS.to_latest(&mut connection)?;
+    Ok(connection)
+}
+
+fn initialize_slot_database(path: &Path) -> Result<(), SaveManagerError> {
+    let _ = open_slot_connection(path)?;
+    Ok(())
+}
+
+fn write_player_data(path: &Path, data: &PlayerData) -> Result<(), SaveManagerError> {
+    let mut connection = open_slot_connection(path)?;
+    persist_player_data(&mut connection, data)?;
+    Ok(())
+}
+
+fn persist_player_data(
+    connection: &mut Connection,
+    data: &PlayerData,
+) -> Result<(), SaveManagerError> {
+    let transaction = connection.transaction()?;
+    transaction.execute(
+        "INSERT INTO player_stats (id, health, experience)
+         VALUES (1, ?1, ?2)
+         ON CONFLICT(id) DO UPDATE SET
+            health = excluded.health,
+            experience = excluded.experience",
+        params![data.health, data.experience],
+    )?;
+
+    transaction.execute("DELETE FROM inventory", [])?;
+    for (position, item) in data.inventory.iter().enumerate() {
+        transaction.execute(
+            "INSERT INTO inventory (position, item) VALUES (?1, ?2)",
+            params![position as i64, item],
+        )?;
+    }
+
+    transaction.commit()?;
     Ok(())
 }
 
